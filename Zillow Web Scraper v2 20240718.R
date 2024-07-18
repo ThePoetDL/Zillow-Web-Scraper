@@ -87,13 +87,7 @@ df_PropertyData <- data.frame(
 listDFs <- list()
 listDFs.counter <- 1
 for (group in list_groups[]) {
-# for (group in list_groups[][1:2]) {
-  ### Test variables outer loop 
-  # group = list_groups[[1]]
   for (zipcode in group) {
-  #### Test variables inner loop  
-  # for (zipcode in Const_PHA_GroupTest) {
-  # zipcode <- 19152
     URL_to_Scrape <- paste0(
       'https://www.zillow.com/philadelphia-pa-',
       zipcode,
