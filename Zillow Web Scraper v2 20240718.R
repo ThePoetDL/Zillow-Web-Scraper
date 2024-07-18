@@ -100,7 +100,6 @@ for (group in list_groups[]) {
       ,
       '%22%7D%7D%2C%22isListVisible%22%3Atrue%7D'
     )
-    # print(URL_to_Scrape)
     
     #Download page HTML data
     page <- read_html(URL_to_Scrape)
@@ -114,8 +113,8 @@ for (group in list_groups[]) {
       print(paste0("Due to lack of results, skipping zip = ", zipcode))
       next
     }
-    NumSearchResults <- str_replace(NumSearchResults, ' results','')
-    NumSearchResults <- str_replace(NumSearchResults, ' result','')
+    NumSearchResults <- str_replace(NumSearchResults, ' results', '')
+    NumSearchResults <- str_replace(NumSearchResults, ' result', '')
     NumSearchResults <- as.numeric(NumSearchResults)
     
     # Select elements with class 'vjmXt', which contain the price
@@ -123,47 +122,67 @@ for (group in list_groups[]) {
     list_Prices <- html_text(elements_Price)
     list_Prices <- gsub(',', '', list_Prices)
     list_Prices <- gsub('\\$', '', list_Prices) %>% as.numeric()
-    # list_Prices
     
     # Select elements with class '.exCsDV li:nth-child(1) b' which contains the number of bedrooms
     elements_BR  <- html_elements(page, ".exCsDV li:nth-child(1) b")
     list_BR <- html_text(elements_BR) %>% as.numeric()
-    # list_BR
     
     # Select elements with class '.exCsDV li~ li+ li b' which contains the number of square footage
     elements_sqft <- html_elements(page, ".exCsDV li~ li+ li b")
     list_sqft  <- html_text(elements_sqft)
     list_sqft <- gsub(",", '', list_sqft) %>% as.numeric()
-    # list_sqft
     
     # Select elements with class 'address' which contains the address
     elements_address <- html_elements(page, "address")
     list_address  <- html_text(elements_address)
-    # list_address
     
     #select URL of the property with class '.Image-c11n-8-102-0__sc-1rtmhsc-0'
     elements_json <- html_elements(page, '[type="application/ld+json"]')
     json_text <- elements_json %>% html_text()
     json_data <- lapply(json_text, fromJSON)
-    list_PropertyURL <- sapply(json_data, function(x) x$url)
-    list_PropertyURL <- head(list_PropertyURL,-1) %>% unlist()
-    # list_PropertyURL
-  
-    #Create tempDF containing property data
-    df_temp <- cbind(list_address, list_Prices, list_BR, list_sqft, list_PropertyURL) %>% as.data.frame()
-    df_temp <- df_temp %>% slice(1:NumSearchResults) #Drop Zillow recommended similar search results, only keep results for 
-    #Merge tempDF into main DF
-    if (ncol(df_PropertyData) == ncol(df_temp)) {
-      df_PropertyData <- rbind(df_PropertyData, df_temp)
-    }
+    list_PropertyURL <- sapply(json_data, function(x)
+      x$url)
+    list_PropertyURL <- head(list_PropertyURL, -1) %>% unlist()
     
+    #Create tempDF containing property data
+    df_temp <- cbind(list_address,
+                     list_Prices,
+                     list_BR,
+                     list_sqft,
+                     list_PropertyURL) %>% as.data.frame()
+    df_temp <- df_temp %>% slice(1:NumSearchResults) #Drop Zillow recommended similar search results, only keep results for
     listDFs[[listDFs.counter]] <- df_temp #add tempDF to running dataframe containing all scraped data
     listDFs.counter <- listDFs.counter + 1
+    rm(df_temp)
+    
     timedelay <- round(runif(1, min = 0, max = 1))
     print(paste0("Zip = ", zipcode, "; timedelay (s) = ", timedelay))
     Sys.sleep(timedelay)
+    
+    rm(
+      elements_address,
+      elements_BR,
+      elements_json,
+      elements_NumSearchResults,
+      elements_Price,
+      elements_sqft
+    )
+    rm(json_data, page, URL_to_Scrape)
+    rm(
+      json_text,
+      list_address,
+      list_BR,
+      list_Prices,
+      list_PropertyURL,
+      list_sqft,
+      timedelay,
+      NumSearchResults
+    )
   }
 }
+rm(zipcode, group, listDFs.counter)
+
+df_PropertyData <- do.call(rbind, listDFs)
 colnames(df_PropertyData) <- c('Address', 'Price', 'Bedrooms', "SquareFeet", "PropertyURL")
 df_PropertyData$ScrapeDate <- today()
 df_PropertyData$Price <- as.numeric(df_PropertyData$Price)
@@ -188,14 +207,13 @@ df_separated <- df_separated %>%
     extra = "merge"
   )
 
-
+#Drop duplicates
 df_separatedtemp <- df_separated %>% distinct(Address, Price, Bedrooms)
-# separate(StateZip, into = c("State", "Zip"), sep = ' ', extra ='merge')
 
-
-#Output data
-filename_output <- paste0('./Scrape Results/Zillow Philadelphia Scrape ', format(today(), '%Y%m%d'), '.xlsx')
-
+#Write data to local file
+filename_output <- paste0('./Scrape Results/Zillow Philadelphia Scrape ',
+                          format(today(), '%Y%m%d'),
+                          '.xlsx')
 if (!file.exists(filename_output)) {
   write.xlsx(df_separated, filename_output)
 }
